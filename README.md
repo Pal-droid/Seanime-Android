@@ -1,2 +1,44 @@
-# Seanime-Android
-[ANDROID] Open-source media server with a web interface and desktop app for anime and manga.
+<p align="center">
+  <img src="https://seanime.app/seanime-logo.png" alt="preview" width="70px"/>
+</p>
+
+<h1 align="center">Seanime for Android</h1>
+
+<p align="center">
+  Native Android port of <a href="https://github.com/5rahim/seanime">Seanime</a>, bringing the full desktop experience to mobile.
+</p>
+
+<p align="center">
+  This is a self-contained application that runs the complete <b>Go backend</b> as a foreground service and renders the <b>React web frontend</b> via a high-performance Android WebView.
+</p>
+
+<h2 align="center">Installation</h2>
+<p align="center">
+  Grab the APK from the <a href="https://github.com/Pal-droid/Seanime-android/releases">latest releases</a>.
+</p>
+
+---
+
+## Important Notes
+
+> [!IMPORTANT]
+> **Independent Project:** This port is maintained by Me **(Pal-droid)**. The original creator of Seanime (**5rahim**) is **not** responsible for this Android version. Please [open all issues here](https://github.com/Pal-droid/Seanime-android/issues) rather than on the main repo.
+
+* **Early Alpha:** This project is in early development. Expect bugs and untested features.
+* **Battery Optimization:** Since the Go backend runs as a foreground service, you may need to exclude the app from battery optimization for the best experience.
+
+---
+
+<h2 align="center">Built With</h2>
+<p align="center">
+  <b>Backend:</b> Go (running as a native service)<br>
+  <b>Frontend:</b> React / Tailwind<br>
+  <b>Wrapper:</b> Android WebView (Java/Kotlin)
+</p>
+
+---
+
+<h2 align="center">More info regarding the project</h2>
+<p align="center">
+  <a href="https://github.com/5rahim/Seanime">Official Seanime repo</a>
+</p>

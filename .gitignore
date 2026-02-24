@@ -1,0 +1,23 @@
+# Gradle files
+.gradle/
+build/
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+.DS_Store
+
+# Device specific
+captures/
+
+# External native build (if you're compiling Go with NDK)
+.externalNativeBuild/
+.cxx/
+
+# Signing files
+*.jks
+*.keystore

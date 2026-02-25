@@ -8,6 +8,15 @@
   <img src="https://img.shields.io/github/last-commit/Pal-droid/Seanime-Android?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge" />
 </p>
 
+---
+
+<h1 align="center">Powered by</h1>
+
+<p align="center">
+<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" />
+<img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" />
+</p>
+
 <p align="center">
   Native Android port of <a href="https://github.com/5rahim/seanime">Seanime</a>, bringing the full desktop experience to mobile.
 </p>

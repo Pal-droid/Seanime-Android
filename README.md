@@ -40,6 +40,7 @@
 
 * **Early Alpha:** This project is in early development. Expect bugs and untested features.
 * **Battery Optimization:** Since the Go backend runs as a foreground service, you may need to exclude the app from battery optimization for the best experience.
+* Remember to give the app all the necessary permissions, such as giving access to show notifications.
 
 ---
 

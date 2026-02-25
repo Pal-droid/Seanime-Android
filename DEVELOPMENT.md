@@ -27,100 +27,96 @@ A cursed but functional Android port of Seanime. The app runs the full Seanime G
 └─────────────────────────────────────────────┘
 ```
 
-The Go binary is compiled for Android (ARM64) and placed in `app/src/main/jniLibs/arm64-v8a/` as `libseanime.so`. Android extracts it at install time, and the foreground service runs it directly. The app then opens a WebView pointed at `localhost:43211`.
+The Go binary is compiled for Android and placed in `app/src/main/jniLibs/` as `libseanime.so`. Android extracts it at install time, the foreground service runs it directly, and the app opens a WebView pointed at `localhost:43211`.
 
 ---
 
 ## Project Structure
 
 ```
-/
-├── app/                        # Android Kotlin project
+seanime-android/
+├── app/
 │   └── src/main/
 │       ├── java/com/seanime/app/
 │       │   ├── MainActivity.kt        # WebView host
 │       │   ├── SeanimeService.kt      # Foreground service
 │       │   └── SeanimeApplication.kt  # App class
-│       ├── jniLibs/                   # Prebuilt binaries (not in repo)
-│       │   ├── arm64-v8a/libseanime.so
+│       ├── jniLibs/                   # Prebuilt binaries (not committed to repo)
+│       │   ├── arm64-v8a/
+│       │   │   └── libseanime.so
 │       │   └── ...
 │       └── AndroidManifest.xml
+├── build-web.sh                       # Web frontend build script
 └── DEVELOPMENT.md
 ```
 
 ---
 
-## Directory Structure
+## Setting Up
 
-This repo expects the main Seanime repo to be cloned alongside it. Create a parent folder and clone both repos into it:
+This repo requires the main Seanime repo to be cloned alongside it. Create a parent folder and clone both into it:
 
 ```bash
 mkdir seanime-project
 cd seanime-project
 git clone https://github.com/5rahim/seanime
-git clone https://github.com/yourname/seanime-android
+git clone https://github.com/pal-droid/seanime-android
 ```
 
-Your structure should look like:
+Your final structure should look like:
 
 ```
 seanime-project/
-├── seanime/            # Main Seanime repo
-└── seanime-android/    # This repo
+├── seanime/
+│   └── seanime-web/    # web frontend lives here
+└── seanime-android/    # this repo
 ```
 
-The `build-web.sh` script looks for `../seanime-web` relative to this repo, so the sibling structure is required.
+The `build-web.sh` script expects `../seanime/seanime-web` to exist relative to this repo, so the sibling structure is required.
 
 ---
 
-## Building the Web Frontend
+## Building
 
-Before building the Go binary, you need to build the web frontend. This compiles the React UI and copies it to `../web/` where it gets embedded into the binary via `go:embed`.
+Follow these steps in order.
+
+### 1. Build the Web Frontend
+
+**Prerequisites:** Node.js v18+, npm
 
 ```bash
 chmod +x build-web.sh
 ./build-web.sh
 ```
 
-The script will:
-1. Look for `.env.mobile` in `../seanime-web/` and use it if present
+This will:
+1. Look for `.env.mobile` in `../seanime/seanime-web/` and use it if present
 2. Run `npm install` and `npm run build`
-3. Copy the output to `../web/`
+3. Copy the output to `../web/` where it gets embedded into the Go binary via `go:embed`
 
-### Prerequisites
+### 2. Build the Go Binary
 
-- Node.js v18+
-- npm
+**Prerequisites:** Go 1.22+
 
----
-
-## Building the Binary
-
-The binary is compiled from the [Seanime](https://github.com/5rahim/seanime) source with Android-specific build tags.
-
-### Prerequisites
-
-- Go 1.22+
-- Seanime source code
-
-### Build Command
+Run this from inside the main `seanime/` repo:
 
 ```bash
 GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
   go build -tags netgo,android \
   -ldflags="-extldflags=-static -s -w" \
-  -o ~/seanime/seanime-android/seanime-server .
+  -o ../seanime-android/seanime-server .
 ```
 
-Then rename and place it:
+Then rename and place it in the correct JNI folder:
 
 ```bash
+cd ../seanime-android
 mv seanime-server app/src/main/jniLibs/arm64-v8a/libseanime.so
 ```
 
-### Multi-Architecture Support
+#### Multi-Architecture Support
 
-To support other architectures, change `GOARCH` and place the output in the corresponding folder:
+To build for other architectures, change `GOARCH` and place the binary in the corresponding folder:
 
 | Architecture | GOARCH | Folder |
 |---|---|---|
@@ -130,29 +126,22 @@ To support other architectures, change `GOARCH` and place the output in the corr
 
 Gradle will automatically bundle the right binary for each device at install time.
 
----
+### 3. Build the APK
 
-## Building the APK
-
-For building and signing the APK, use a proper IDE such as **Android Studio** or **CodeAssist** (on-device). Manual Gradle builds are possible but brittle and not recommended.
-
-The APK output will be at:
-```
-app/build/outputs/apk/release/app-release-unsigned.apk
-```
+Open the project in **Android Studio** or **CodeAssist** (on-device) and build from there. Manual Gradle builds are possible but brittle and not recommended.
 
 ---
 
 ## Permissions
 
-Declared in `AndroidManifest.xml`:
+| Permission | Reason |
+|---|---|
+| `INTERNET` | Network access for API calls and streaming |
+| `FOREGROUND_SERVICE` | Keep server running in background |
+| `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Classifies the foreground service type |
+| `POST_NOTIFICATIONS` | Foreground service notification + shutdown button |
 
-- `INTERNET` — Network access for API calls and streaming
-- `FOREGROUND_SERVICE` — Keep server running in background
-- `FOREGROUND_SERVICE_MEDIA_PLAYBACK` — Classifies the foreground service as media playback
-- `POST_NOTIFICATIONS` — Foreground service notification + shutdown button
-
-`usesCleartextTraffic="true"` is also set to allow the WebView to access the Go server over `http://localhost`.
+`usesCleartextTraffic="true"` is also set in the manifest to allow the WebView to reach the Go server over `http://localhost`.
 
 ---
 
@@ -164,13 +153,12 @@ Declared in `AndroidManifest.xml`:
 | Torrent client | ✅ | Pure Go, works natively |
 | SQLite database | ✅ | Pure Go SQLite (glebarez/sqlite) |
 | File scanner | ✅ | Works on internal storage |
+| AniList API / Extensions | ✅ | |
 | Online streaming playback | ✅ | HLS.js in WebView, mobile gestures supported |
 | Fullscreen | ❌ | Fullscreen button non-functional in WebView |
-| Torrent streaming video | ❌ | Requires MPV, stubbed out — potential future fix via libmpv |
-| AniList API / Extensions | ✅ | |
+| Torrent streaming video | ❌ | Requires MPV — potential future fix via libmpv |
 | System tray | ❌ | Not applicable on Android |
 | Discord RPC | ❌ | No named pipe IPC on Android |
-| External MPV/VLC | ❌ | Stubbed out, potential future improvement |
 | Desktop notifications | ❌ | Could be added via Android notifications |
 | Self-updater | ❌ | Manual APK update required |
 
@@ -178,7 +166,7 @@ Declared in `AndroidManifest.xml`:
 
 ## Debugging
 
-### View Logs
+### Logs
 
 ```bash
 # All Seanime-related logs
@@ -188,6 +176,13 @@ adb logcat | grep -i seanime
 adb logcat SeanimeService:D MainActivity:D *:S
 ```
 
+### Server Logs
+
+```bash
+adb shell run-as com.seanime.app ls files/logs
+adb shell run-as com.seanime.app cat files/logs/<logfile>
+```
+
 ### WebView Debugging
 
 1. Enable in `MainActivity.kt`:
@@ -195,13 +190,6 @@ adb logcat SeanimeService:D MainActivity:D *:S
    WebView.setWebContentsDebuggingEnabled(true)
    ```
 2. Open `chrome://inspect/#devices` in Chrome
-
-### Server Logs
-
-```bash
-adb shell run-as com.seanime.app ls files/logs
-adb shell run-as com.seanime.app cat files/logs/<logfile>
-```
 
 ### Server Not Responding
 
@@ -219,15 +207,15 @@ adb shell curl http://localhost:43211
 
 - **RAM**: ~150–300MB (Go server + WebView)
 - **Storage**: ~50MB binary, data varies
-- **Battery**: Moderate impact due to foreground service + WAKE_LOCK
+- **Battery**: Moderate impact due to foreground service
 
 ---
 
 ## Future Improvements
 
-- [ ] Android-native notifications (replace no-ops)
+- [ ] Android-native notifications
 - [ ] File picker for external storage
-- [ ] Embedded MPV via libmpv for native video playback
+- [ ] Embedded MPV via libmpv for native torrent streaming video
 - [ ] Android TV support
 - [ ] Auto-update mechanism
 - [ ] Split APKs per architecture for smaller downloads

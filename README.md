@@ -6,6 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/github/last-commit/Pal-droid/Seanime-Android?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge" />
+  <img src="https://img.shields.io/github/license/5rahim/Seanime?style=for-the-badge" />
 </p>
 
 ---

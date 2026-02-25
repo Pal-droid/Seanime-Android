@@ -85,6 +85,7 @@ Follow these steps in order.
 **Prerequisites:** Node.js v18+, npm
 
 ```bash
+cd seanime-android
 chmod +x build-web.sh
 ./build-web.sh
 ```

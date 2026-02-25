@@ -1,0 +1,10 @@
+{
+  "minSdkVersion": 21.0,
+  "viewBindingEnabled": false,
+  "libraries": "[{\"declaration\":\"org.jetbrains:annotations:13.0\",\"sourceFile\":\"/storage/emulated/0/Android/data/com.tyron.code/files/cache/maven/org/jetbrains/annotations/13.0/annotations-13.0.jar\"},{\"declaration\":\"org.jetbrains.kotlin:kotlin-stdlib-common:1.5.21\",\"sourceFile\":\"/storage/emulated/0/Android/data/com.tyron.code/files/cache/maven/org/jetbrains/kotlin/kotlin-stdlib-common/1.5.21/kotlin-stdlib-common-1.5.21.jar\"},{\"declaration\":\"org.jetbrains.kotlin:kotlin-stdlib:1.5.21\",\"sourceFile\":\"/storage/emulated/0/Android/data/com.tyron.code/files/cache/maven/org/jetbrains/kotlin/kotlin-stdlib/1.5.21/kotlin-stdlib-1.5.21.jar\"}]",
+  "useR8": false,
+  "targetSdkVersion": 30.0,
+  "versionName": "1.0",
+  "versionCode": 1.0,
+  "zipAlignEnabled": false
+}

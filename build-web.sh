@@ -25,14 +25,13 @@ npm install
 echo "Building frontend..."
 npm run build
 
-# --- THE FIX ---
 # We need to copy the 'out' folder to 'seanime/web' 
 # so 'go:embed' can find it during the Go build process.
 echo "Copying build to ../web/ (Seanime Go root)"
 rm -rf ../web
 cp -r out/ ../web/
 
-# Also keeping a copy in the android folder just in case you need it
+# Also keeping a copy in the android folder just in case
 echo "Copying build to ../../seanime-android/web/"
 rm -rf ../../seanime-android/web
 cp -r out/ ../../seanime-android/web/

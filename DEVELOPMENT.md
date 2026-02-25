@@ -181,25 +181,29 @@ adb logcat SeanimeService:D MainActivity:D *:S
 
 ```bash
 adb shell run-as com.seanime.app ls files/logs
-adb shell run-as com.seanime.app cat files/logs/<logfile>
+adb shell run-as com.seanime.app cat files/logs/
 ```
 
 ### WebView Debugging
 
-1. Enable in `MainActivity.kt`:
-   ```kotlin
-   WebView.setWebContentsDebuggingEnabled(true)
-   ```
-2. Open `chrome://inspect/#devices` in Chrome
+WebView debugging is not enabled by default. To enable it, add this to `MainActivity.kt` inside `setupWebView()`:
+
+```kotlin
+WebView.setWebContentsDebuggingEnabled(true)
+```
+
+Then open `chrome://inspect/#devices` in Chrome.
 
 ### Server Not Responding
+
+The app waits 2 seconds before loading `http://127.0.0.1:43211` and retries every 2 seconds if the server isn't up yet. If it never loads:
 
 ```bash
 # Check if server started
 adb logcat | grep "Go server started"
 
 # Test server directly
-adb shell curl http://localhost:43211
+adb shell curl http://127.0.0.1:43211
 ```
 
 ---

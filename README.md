@@ -5,6 +5,10 @@
 <h1 align="center">Seanime for Android</h1>
 
 <p align="center">
+  <img src="https://img.shields.io/github/last-commit/Pal-droid/Seanime-Providers?logo=git&logoColor=white&labelColor=2d3748&color=805ad5&style=for-the-badge" />
+</p>
+
+<p align="center">
   Native Android port of <a href="https://github.com/5rahim/seanime">Seanime</a>, bringing the full desktop experience to mobile.
 </p>
 

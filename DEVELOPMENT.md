@@ -104,7 +104,7 @@ Run this from inside the main `seanime/` repo:
 ```bash
 GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
   go build -tags netgo,android \
-  -ldflags="-extldflags=-static -s -w" \
+  -ldflags="-extldflags=-static -s -w -checklinkname=0" \
   -o ../seanime-android/seanime-server .
 ```
 

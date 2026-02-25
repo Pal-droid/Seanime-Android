@@ -1,4 +1,4 @@
-# Development Guide
+# Pal-droid Development Guide
 
 A cursed but functional Android port of Seanime. The app runs the full Seanime Go backend as a foreground service and wraps the React web frontend in a WebView.
 
@@ -50,6 +50,50 @@ The Go binary is compiled for Android (ARM64) and placed in `app/src/main/jniLib
 
 ---
 
+## Directory Structure
+
+This repo expects the main Seanime repo to be cloned alongside it. Create a parent folder and clone both repos into it:
+
+```bash
+mkdir seanime-project
+cd seanime-project
+git clone https://github.com/5rahim/seanime
+git clone https://github.com/yourname/seanime-android
+```
+
+Your structure should look like:
+
+```
+seanime-project/
+├── seanime/            # Main Seanime repo
+└── seanime-android/    # This repo
+```
+
+The `build-web.sh` script looks for `../seanime-web` relative to this repo, so the sibling structure is required.
+
+---
+
+## Building the Web Frontend
+
+Before building the Go binary, you need to build the web frontend. This compiles the React UI and copies it to `../web/` where it gets embedded into the binary via `go:embed`.
+
+```bash
+chmod +x build-web.sh
+./build-web.sh
+```
+
+The script will:
+1. Look for `.env.mobile` in `../seanime-web/` and use it if present
+2. Run `npm install` and `npm run build`
+3. Copy the output to `../web/`
+
+### Prerequisites
+
+- Node.js v18+
+- npm
+
+---
+
 ## Building the Binary
 
 The binary is compiled from the [Seanime](https://github.com/5rahim/seanime) source with Android-specific build tags.
@@ -65,7 +109,7 @@ The binary is compiled from the [Seanime](https://github.com/5rahim/seanime) sou
 GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
   go build -tags netgo,android \
   -ldflags="-extldflags=-static -s -w" \
-  -o ~/Seanime-Android .
+  -o ~/seanime/seanime-android/seanime-server .
 ```
 
 Then rename and place it:
@@ -90,7 +134,12 @@ Gradle will automatically bundle the right binary for each device at install tim
 
 ## Building the APK
 
-For building and signing the APK, use a proper IDE such as **Android Studio** or **CodeAssist** (Android). Manual Gradle builds are possible but brittle and not recommended.
+For building and signing the APK, use a proper IDE such as **Android Studio** or **CodeAssist** (on-device). Manual Gradle builds are possible but brittle and not recommended.
+
+The APK output will be at:
+```
+app/build/outputs/apk/release/app-release-unsigned.apk
+```
 
 ---
 
@@ -115,7 +164,8 @@ Declared in `AndroidManifest.xml`:
 | Torrent client | ✅ | Pure Go, works natively |
 | SQLite database | ✅ | Pure Go SQLite (glebarez/sqlite) |
 | File scanner | ✅ | Works on internal storage |
-| Online streaming playback | ✅ | Fullscreen button doesn't work. |
+| Online streaming playback | ✅ | HLS.js in WebView, mobile gestures supported |
+| Fullscreen | ❌ | Fullscreen button non-functional in WebView |
 | Torrent streaming video | ❌ | Requires MPV, stubbed out — potential future fix via libmpv |
 | AniList API / Extensions | ✅ | |
 | System tray | ❌ | Not applicable on Android |

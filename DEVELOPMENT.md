@@ -48,9 +48,44 @@ cd ~/seanime
 
 Follow the building steps referenced in the official seanime repo and then build the binary at the root of the directory:
 
+
 ```bash
 GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -tags android -ldflags="-s -w" -o seanime-server .
 ```
+
+> [!IMPORTANT]
+> building directly might generate a faulty binary that fails on external network requests due to some dns issues. if that persists replace the contents of `main.go` in the root of the seanime directory with the following:
+```go
+package main
+
+import (
+	"embed"
+	"seanime/internal/server"
+	"context"
+	"net"
+)
+
+func init() {
+    net.DefaultResolver = &net.Resolver{
+        PreferGo: true,
+        Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+            d := net.Dialer{}
+            return d.DialContext(ctx, "udp", "8.8.8.8:53")
+        },
+    }
+}
+
+//go:embed all:web
+var WebFS embed.FS
+
+//go:embed internal/icon/logo.png
+var embeddedLogo []byte
+
+func main() {
+	server.StartServer(WebFS, embeddedLogo)
+}
+```
+> This will bypass any dns related issues.
 
 Then rename it to `libseanime.so` and place it in the correct JNI folder in the `seanime-android` repo.
 

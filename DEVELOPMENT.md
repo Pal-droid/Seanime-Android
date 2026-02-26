@@ -87,7 +87,7 @@ func main() {
 ```
 > This will bypass any dns related issues.
 
-Then rename it to `libseanime.so` and place it in the correct JNI folder in the `seanime-android` repo.
+Then after building the binary rename it to `libseanime.so` and place it in the correct JNI folder in the `seanime-android` repo.
 
 #### Multi-Architecture Support
 

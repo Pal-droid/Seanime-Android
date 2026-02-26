@@ -47,10 +47,7 @@ cd ~/seanime
 ### 2. Build the Go Binary
 
 ```bash
-GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
-  go build -tags netgo,android \
-  -ldflags="-extldflags=-static -s -w -checklinkname=0" \
-  -o ../seanime-android/seanime-server .
+GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -tags android -ldflags="-s -w" -o seanime-server .
 ```
 
 Then rename it to `libseanime.so` and place it in the correct JNI folder in the `seanime-android` repo.

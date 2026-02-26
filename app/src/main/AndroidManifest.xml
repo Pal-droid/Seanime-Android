@@ -4,20 +4,22 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
         android:label="Seanime"
         android:icon="@mipmap/ic_launcher"
-		android:usesCleartextTraffic="true"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.NoTitleBar">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize">
+            android:supportsPictureInPicture="true"
+   		 android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -26,8 +28,9 @@
 
         <service
             android:name=".SeanimeService"
+            android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="connectedDevice" />
 
     </application>
 

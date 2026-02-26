@@ -31,89 +31,26 @@ The Go binary is compiled for Android and placed in `app/src/main/jniLibs/` as `
 
 ---
 
-## Project Structure
-
-```
-seanime-android/
-├── app/
-│   └── src/main/
-│       ├── java/com/seanime/app/
-│       │   ├── MainActivity.kt        # WebView host
-│       │   ├── SeanimeService.kt      # Foreground service
-│       │   └── SeanimeApplication.kt  # App class
-│       ├── jniLibs/                   # Prebuilt binaries (not committed to repo)
-│       │   ├── arm64-v8a/
-│       │   │   └── libseanime.so
-│       │   └── ...
-│       └── AndroidManifest.xml
-├── build-web.sh                       # Web frontend build script
-└── DEVELOPMENT.md
-```
-
----
-
-## Setting Up
-
-This repo requires the main Seanime repo to be cloned alongside it. Create a parent folder and clone both into it:
-
-```bash
-mkdir seanime-project
-cd seanime-project
-git clone https://github.com/5rahim/seanime
-git clone https://github.com/pal-droid/seanime-android
-```
-
-Your final structure should look like:
-
-```
-seanime-project/
-├── seanime/
-│   └── seanime-web/    # web frontend lives here
-└── seanime-android/    # this repo
-```
-
-The `build-web.sh` script expects `../seanime/seanime-web` to exist relative to this repo, so the sibling structure is required.
-
----
-
-## Building
+## Building the binary
 
 Follow these steps in order.
 
-### 1. Build the Web Frontend
+### 1. Setting up
 
-**Prerequisites:** Node.js v18+, npm
+Clone the official seanime repo and cd into it
 
 ```bash
-cd seanime-android
-chmod +x build-web.sh
-./build-web.sh
+git clone https://github.com/5rahim/seanime
+cd ~/seanime
 ```
-
-This will:
-1. Look for `.env.mobile` in `../seanime/seanime-web/` and use it if present
-2. Run `npm install` and `npm run build`
-3. Copy the output to `../web/` where it gets embedded into the Go binary via `go:embed`
 
 ### 2. Build the Go Binary
 
-**Prerequisites:** Go 1.22+
-
-Run this from inside the main `seanime/` repo:
-
 ```bash
-GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
-  go build -tags netgo,android \
-  -ldflags="-extldflags=-static -s -w" \
-  -o ../seanime-android/seanime-server .
+GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -tags android -ldflags="-s -w" -o seanime-server .
 ```
 
-Then rename and place it in the correct JNI folder:
-
-```bash
-cd ../seanime-android
-mv seanime-server app/src/main/jniLibs/arm64-v8a/libseanime.so
-```
+Then rename it to `libseanime.so` and place it in the correct JNI folder in the `seanime-android` repo.
 
 #### Multi-Architecture Support
 

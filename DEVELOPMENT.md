@@ -130,7 +130,7 @@ Open the project in **Android Studio** or **CodeAssist** (on-device) and build f
 | File scanner | ✅ | Works on internal storage |
 | AniList API / Extensions | ✅ | |
 | Online streaming playback | ✅ | HLS.js in WebView, mobile gestures supported |
-| Fullscreen | ❌ | Fullscreen button non-functional in WebView |
+| Fullscreen | ✅️ | Fullscreen button is functional in WebView |
 | Torrent streaming video | ❌ | Requires MPV — potential future fix via libmpv |
 | System tray | ❌ | Not applicable on Android |
 | Discord RPC | ❌ | No named pipe IPC on Android |

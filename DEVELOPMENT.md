@@ -46,6 +46,8 @@ cd ~/seanime
 
 ### 2. Build the Go Binary
 
+Follow the building steps referenced in the official seanime repo and then build the binary at the root of the directory:
+
 ```bash
 GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -tags android -ldflags="-s -w" -o seanime-server .
 ```

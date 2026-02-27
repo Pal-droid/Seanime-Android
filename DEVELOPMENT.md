@@ -132,7 +132,7 @@ Open the project in **Android Studio** or **CodeAssist** (on-device) and build f
 | Online streaming playback | ✅ | HLS.js in WebView, mobile gestures supported |
 | Fullscreen | ✅️ | Fullscreen button is functional in WebView |
 | Torrent streaming video | ❌ | Requires MPV — potential future fix via libmpv |
-| System tray | ❌ | Not applicable on Android |
+| System tray | ✅️ | Via Android notifications |
 | Discord RPC | ❌ | No named pipe IPC on Android |
 | Desktop notifications | ❌ | Could be added via Android notifications |
 | Self-updater | ❌ | Manual APK update required |

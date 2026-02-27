@@ -29,12 +29,12 @@ class SeanimeService : Service() {
 
         notificationManager = getSystemService(NotificationManager::class.java)
         createNotificationChannel()
-        
+
         createFakeResolvConf()
         startBinary()
-        
+
         updateNotification("Server is running")
-        
+
         return START_STICKY
     }
 
@@ -52,7 +52,7 @@ class SeanimeService : Service() {
         val stopIntent = Intent(this, SeanimeService::class.java).apply {
             action = ACTION_STOP_SERVICE
         }
-        
+
         val pendingStopIntent = PendingIntent.getService(
             this, 0, stopIntent, 
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

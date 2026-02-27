@@ -135,6 +135,7 @@ Open the project in **Android Studio** or **CodeAssist** (on-device) and build f
 | System tray | ✅️ | Partially implemented via Android notifications |
 | Discord RPC | ❌ | No named pipe IPC on Android |
 | Desktop notifications | ❌ | Could be added via Android notifications |
+| Verify ChromeDP works | ➖️ | Important, since some extensions rely on headless browser scraping |
 | Self-updater | ❌ | Manual APK update required |
 
 ---

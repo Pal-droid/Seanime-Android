@@ -1,12 +1,11 @@
 package com.seanime.app
 
 import android.app.Activity
-import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.util.Rational
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -16,8 +15,25 @@ import android.widget.FrameLayout
 class MainActivity : Activity() {
 
     private lateinit var webView: WebView
+    private lateinit var pipManager: PiPManager
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+
+    private val retryCountMap = mutableMapOf<WebView, Int>()
+    private val MAX_RETRIES = 5
+
+    inner class OrientationBridge {
+        @JavascriptInterface
+        fun setLandscape(landscape: Boolean) {
+            runOnUiThread {
+                requestedOrientation = if (landscape) {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,33 +51,14 @@ class MainActivity : Activity() {
         startForegroundService(intent)
     }
 
-    inner class PiPBridge {
-        @JavascriptInterface
-        fun enterPiP() {
-            runOnUiThread {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val params = PictureInPictureParams.Builder()
-                        .setAspectRatio(Rational(16, 9))
-                        .build()
-                    enterPictureInPictureMode(params)
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun exitPiP() {
-            runOnUiThread {
-                val intent = Intent(this@MainActivity, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                }
-                startActivity(intent)
-            }
-        }
-    }
-
     private fun setupWebView() {
         webView = WebView(this)
         setContentView(webView)
+
+        pipManager = PiPManager(this, webView)
+        pipManager.registerBridge()
+
+        webView.addJavascriptInterface(OrientationBridge(), "OrientationBridge")
 
         webView.settings.apply {
             javaScriptEnabled = true
@@ -73,21 +70,24 @@ class MainActivity : Activity() {
             userAgentString = userAgentString.replace("; wv", "")
         }
 
-        webView.addJavascriptInterface(PiPBridge(), "AndroidBridge")
-
         webView.webViewClient = object : WebViewClient() {
             override fun onReceivedError(view: WebView?, errorCode: Int, desc: String?, url: String?) {
-                retry(view)
+                if (view != null && url != null && url == view.url) {
+                    retry(view)
+                }
             }
+
             override fun onReceivedError(view: WebView?, req: WebResourceRequest?, err: WebResourceError?) {
                 if (req?.isForMainFrame == true) retry(view)
             }
-            private fun retry(view: WebView?) {
-                view?.postDelayed({ view.reload() }, 1000)
-            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                injectFloatingPill()
+                if (view != null) retryCountMap[view] = 0
+                FloatingPill.inject(webView)
+                pipManager.injectHijacker()
+                DualModeManager.inject(webView)
+                injectVideoControlBehavior(webView)
             }
         }
 
@@ -120,215 +120,165 @@ class MainActivity : Activity() {
         }, 1000)
     }
 
-    override fun onUserLeaveHint() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .build()
-            enterPictureInPictureMode(params)
-        }
+    private fun injectVideoControlBehavior(view: WebView) {
+        // language=JavaScript
+        val js = """
+        (function() {
+            if (window.__seanimeControlPatchActive) return;
+            window.__seanimeControlPatchActive = true;
+
+            var HIDE_DELAY_MS = 3000;
+            var hideTimer = null;
+            var patched = false;
+            var observersAttached = false;
+
+            function isEntryRoute() {
+                var url = window.location.pathname + window.location.search;
+                return url.indexOf('/entry') !== -1 && url.indexOf('id=') !== -1;
+            }
+
+            function getTopBar() {
+                return document.querySelector('[data-vc-element="mobile-control-bar-top-section"]');
+            }
+            function getBottomBar() {
+                return document.querySelector('[data-vc-element="mobile-control-bar-bottom-section"]');
+            }
+
+            function isHideTransform(transform) {
+                if (!transform || transform === 'none' || transform === '') return false;
+                var match = transform.match(/translateY\(([^)]+)\)/);
+                if (!match) return false;
+                return parseFloat(match[1]) !== 0;
+            }
+
+            function hideBars() {
+                var top = getTopBar();
+                var bot = getBottomBar();
+                if (!top || !bot) return;
+                // Unblock observers first so they don't fight us
+                top.__seanimeBlockHide = false;
+                bot.__seanimeBlockHide = false;
+                // Actively push bars offscreen — matches what the native player does
+                top.style.transform = 'translateY(-100%)';
+                bot.style.transform = 'translateY(100%)';
+            }
+
+            function scheduleHide() {
+                clearTimeout(hideTimer);
+                hideTimer = setTimeout(function() {
+                    hideBars();
+                }, HIDE_DELAY_MS);
+            }
+
+            function patchPlayer() {
+                if (!isEntryRoute()) return;
+                if (patched) return;
+
+                var topBar = getTopBar();
+                var bottomBar = getBottomBar();
+                if (!topBar || !bottomBar) return;
+
+                patched = true;
+                topBar.__seanimeBlockHide = false;
+                bottomBar.__seanimeBlockHide = false;
+
+                if (!observersAttached) {
+                    observersAttached = true;
+
+                    function watchBar(el) {
+                        new MutationObserver(function(mutations) {
+                            mutations.forEach(function(m) {
+                                if (m.attributeName !== 'style') return;
+                                if (!isEntryRoute()) return;
+                                if (!el.__seanimeBlockHide) return;
+                                // Native player tried to hide — force back visible
+                                if (isHideTransform(el.style.transform)) {
+                                    el.style.transform = 'translateY(0px)';
+                                }
+                            });
+                        }).observe(el, { attributes: true, attributeFilter: ['style'] });
+                    }
+
+                    watchBar(topBar);
+                    watchBar(bottomBar);
+                }
+
+                var container = document.querySelector('[data-vc-element="container"]');
+                if (!container || container.__seanimeClickPatched) return;
+                container.__seanimeClickPatched = true;
+
+                // Bubble phase — does NOT interfere with pause/play or any other native handlers
+                container.addEventListener('click', function(e) {
+                    if (!isEntryRoute()) return;
+
+                    var top = getTopBar();
+                    var bot = getBottomBar();
+                    if (!top || !bot) return;
+
+                    var currentlyVisible = !isHideTransform(top.style.transform);
+
+                    if (currentlyVisible) {
+                        // Controls already visible: block native hide, restart our 3s timer
+                        top.__seanimeBlockHide = true;
+                        bot.__seanimeBlockHide = true;
+                        scheduleHide();
+                    } else {
+                        // Controls were hidden: let native show them first, then block + start timer
+                        setTimeout(function() {
+                            var t = getTopBar();
+                            var b = getBottomBar();
+                            if (t && b) {
+                                t.__seanimeBlockHide = true;
+                                b.__seanimeBlockHide = true;
+                                scheduleHide();
+                            }
+                        }, 100);
+                    }
+                }, false);
+            }
+
+            // Re-patch on SPA navigation
+            var _pushState = history.pushState.bind(history);
+            history.pushState = function() {
+                _pushState.apply(history, arguments);
+                patched = false;
+                setTimeout(patchPlayer, 500);
+            };
+            var _replaceState = history.replaceState.bind(history);
+            history.replaceState = function() {
+                _replaceState.apply(history, arguments);
+                patched = false;
+                setTimeout(patchPlayer, 500);
+            };
+            window.addEventListener('popstate', function() {
+                patched = false;
+                setTimeout(patchPlayer, 500);
+            });
+
+            // Patch when player mounts into DOM
+            new MutationObserver(function() {
+                if (!patched) patchPlayer();
+            }).observe(document.body, { childList: true, subtree: true });
+
+            patchPlayer();
+        })();
+        """.trimIndent()
+
+        view.evaluateJavascript(js, null)
+    }
+
+    private fun retry(view: WebView?) {
+        view ?: return
+        val count = retryCountMap.getOrDefault(view, 0)
+        if (count >= MAX_RETRIES) return
+        retryCountMap[view] = count + 1
+        val delayMs = (count + 1) * 1000L
+        view.postDelayed({ view.reload() }, delayMs)
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        
-        if (isInPictureInPictureMode) {
-            webView.evaluateJavascript("""
-                (function() {
-                    const pill = document.getElementById('android-floating-pill');
-                    const menu = document.getElementById('android-floating-menu');
-                    if (pill) pill.style.setProperty('display', 'none', 'important');
-                    if (menu) menu.style.setProperty('display', 'none', 'important');
-                    
-                    let style = document.getElementById('pip-overlay-style') || document.createElement('style');
-                    style.id = 'pip-overlay-style';
-                    style.innerHTML = `
-                        body { background: black !important; }
-                        /* Hide app chrome/ui but keep the video container */
-                        header, footer, nav, .UI-AppSidebar__sidebar, .UI-AppSidebarTrigger__trigger { 
-                            display: none !important; 
-                        }
-                        video {
-                            position: fixed !important;
-                            top: 0 !important; left: 0 !important;
-                            width: 100vw !important; height: 100vh !important;
-                            z-index: 2147483647 !important;
-                            background: black !important;
-                            object-fit: contain !important;
-                        }
-                    `;
-                    document.head.appendChild(style);
-                })();
-            """.trimIndent(), null)
-        } else {
-            webView.evaluateJavascript("""
-                (function() {
-                    const style = document.getElementById('pip-overlay-style');
-                    if (style) style.remove();
-                    
-                    const pill = document.getElementById('android-floating-pill');
-                    if (pill) pill.style.display = 'grid';
-                    
-                    // Trigger the internal update logic of your pill script
-                    window.dispatchEvent(new Event('resize'));
-                })();
-            """.trimIndent(), null)
-        }
-    }
-
-    private fun injectFloatingPill() {
-        val js = """
-            (function() {
-                const PILL_ID = 'android-floating-pill';
-                const MENU_ID = 'android-floating-menu';
-                const BUTTON_SELECTOR = '.UI-AppSidebarTrigger__trigger';
-                const READER_DRAWER_SELECTOR = 'div[data-chapter-reader-drawer-content="true"]';
-
-                let visibleNavSnapshot = [];
-                let menuOpen = false;
-
-                function snapshotNavItems() {
-                    const items = [];
-                    document.querySelectorAll('.UI-AppSidebar__sidebar a[data-vertical-menu-item-link]').forEach(a => {
-                        const hiddenByApp = a.style.display === 'none' && !a.dataset.hiddenByUs;
-                        if (hiddenByApp) return;
-                        const label = a.getAttribute('data-vertical-menu-item-link');
-                        const href = a.getAttribute('href');
-                        const isCurrent = a.getAttribute('data-current') === 'true';
-                        const svgEl = a.querySelector('svg');
-                        const svg = svgEl ? svgEl.outerHTML : '';
-                        if (label && href) items.push({ type: 'link', label, href, svg, isCurrent });
-                    });
-                    document.querySelectorAll('.UI-AppSidebar__sidebar button[data-vertical-menu-item-button]').forEach(btn => {
-                        const hiddenByApp = btn.style.display === 'none' && !btn.dataset.hiddenByUs;
-                        if (hiddenByApp) return;
-                        const label = btn.getAttribute('data-vertical-menu-item-button');
-                        const svgEl = btn.querySelector('svg');
-                        const svg = svgEl ? svgEl.outerHTML : '';
-                        if (label) items.push({ type: 'button', label, svg });
-                    });
-                    return items;
-                }
-
-                function updateUIState() {
-                    const pill = document.getElementById(PILL_ID);
-                    const isReaderOpen = !!document.querySelector(READER_DRAWER_SELECTOR);
-                    visibleNavSnapshot = snapshotNavItems();
-                    
-                    // HIDE ORIGINAL MENU BUTTONS
-                    document.querySelectorAll(BUTTON_SELECTOR).forEach(btn => {
-                        if (btn.id !== 'floating-menu-btn') {
-                            btn.dataset.hiddenByUs = 'true';
-                            btn.style.setProperty('display', 'none', 'important');
-                        }
-                    });
-
-                    if (pill) {
-                        if (isReaderOpen || visibleNavSnapshot.length === 0) {
-                            pill.style.opacity = '0';
-                            pill.style.pointerEvents = 'none';
-                        } else {
-                            pill.style.opacity = '1';
-                            pill.style.pointerEvents = 'auto';
-                        }
-                    }
-                }
-
-                function buildMenu(items) {
-                    let menu = document.getElementById(MENU_ID);
-                    if (!menu) return;
-                    menu.innerHTML = '';
-                    const reversedItems = [...items].reverse();
-
-                    reversedItems.forEach((item, i) => {
-                        const btn = document.createElement('div');
-                        btn.className = 'float-nav-item';
-                        const tooltip = document.createElement('span');
-                        tooltip.className = 'float-nav-tooltip';
-                        tooltip.textContent = item.label;
-                        const iconWrap = document.createElement('div');
-                        iconWrap.className = 'float-nav-icon' + (item.isCurrent ? ' float-nav-icon--active' : '');
-                        iconWrap.innerHTML = item.svg || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
-                        
-                        const svgInner = iconWrap.querySelector('svg');
-                        if (svgInner) {
-                            svgInner.setAttribute('width', '22');
-                            svgInner.setAttribute('height', '22');
-                            svgInner.style.cssText = 'width: 22px !important; height: 22px !important; display: block !important; margin: 0 !important;';
-                        }
-
-                        btn.appendChild(tooltip);
-                        btn.appendChild(iconWrap);
-                        menu.appendChild(btn);
-
-                        btn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            closeMenu();
-                            if (item.type === 'link') window.location.href = item.href;
-                            else if (item.type === 'button') {
-                                const target = document.querySelector('.UI-AppSidebar__sidebar button[data-vertical-menu-item-button="' + CSS.escape(item.label) + '"]');
-                                if (target) target.click();
-                            }
-                        });
-                    });
-                }
-
-                function openMenu() {
-                    const menu = document.getElementById(MENU_ID);
-                    if (!menu) return;
-                    buildMenu(visibleNavSnapshot);
-                    menu.style.display = 'flex';
-                    menuOpen = true;
-                    menu.querySelectorAll('.float-nav-item').forEach((el, i) => {
-                        el.style.opacity = '0';
-                        el.style.transform = 'translateY(10px)';
-                        setTimeout(() => {
-                            el.style.transition = 'opacity 0.2s ease, transform 0.25s cubic-bezier(0.17, 0.67, 0.83, 0.67)';
-                            el.style.opacity = '1';
-                            el.style.transform = 'translateY(0)';
-                        }, i * 40);
-                    });
-                }
-
-                function closeMenu() {
-                    const menu = document.getElementById(MENU_ID);
-                    if (menu) menu.style.display = 'none';
-                    menuOpen = false;
-                }
-
-                if (!document.getElementById(PILL_ID)) {
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        #android-floating-menu { position: fixed; bottom: 84px; right: 24px; width: 52px; z-index: 999998; display: none; flex-direction: column; align-items: center; gap: 12px; }
-                        .float-nav-item { display: flex; align-items: center; justify-content: center; position: relative; width: 100%; }
-                        .float-nav-tooltip { position: absolute; right: 64px; background: rgba(15,15,15,0.95); color: white; font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 8px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); pointer-events: none; }
-                        .float-nav-icon { width: 44px !important; height: 44px !important; border-radius: 12px; background: rgba(25,25,25,0.9); border: 1px solid rgba(255,255,255,0.1); display: grid !important; place-items: center !important; color: #a0a0a0; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
-                        .float-nav-icon--active { background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3); }
-                    `;
-                    document.head.appendChild(style);
-
-                    const menuContainer = document.createElement('div');
-                    menuContainer.id = MENU_ID;
-                    document.body.appendChild(menuContainer);
-
-                    const container = document.createElement('div');
-                    container.id = PILL_ID;
-                    container.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:999999;background:rgba(20,20,20,0.9);backdrop-filter:blur(10px);border-radius:16px;padding:4px;display:grid;place-items:center;width:52px;height:52px;border:1px solid rgba(255,255,255,0.1);";
-                    container.innerHTML = '<button id="floating-menu-btn" style="background:none;border:none;color:#ccc;width:44px;height:44px;display:grid;place-items:center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg></button>';
-                    document.body.appendChild(container);
-
-                    document.getElementById('floating-menu-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        menuOpen ? closeMenu() : openMenu();
-                    });
-                    document.addEventListener('click', () => { if (menuOpen) closeMenu(); });
-                }
-                const observer = new MutationObserver(() => updateUIState());
-                observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-                updateUIState();
-            })();
-        """.trimIndent()
-        webView.evaluateJavascript(js, null)
+        pipManager.onPiPModeChanged(isInPictureInPictureMode)
     }
 
     private fun toggleSystemBars(hide: Boolean) {

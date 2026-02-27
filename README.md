@@ -31,6 +31,11 @@
   Grab the APK from the <a href="https://github.com/Pal-droid/Seanime-android/releases">latest releases</a>.
 </p>
 
+<h2 align="center">Building the APK</h2>
+<p align="center">
+  Read the docs at <a href="https://github.com/Pal-droid/Seanime-Android/blob/main/DEVELOPMENT.md">DEVELOPMENT.md</a>.
+</p>
+
 ---
 
 ## Important Notes

@@ -88,6 +88,7 @@ class MainActivity : Activity() {
                 pipManager.injectHijacker()
                 DualModeManager.inject(webView)
                 VideoControlInjector.inject(webView)
+                UIPatches.inject(webView)
             }
         }
 
